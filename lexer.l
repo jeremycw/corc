@@ -1,5 +1,5 @@
 %{
-#include "casync.tab.h"
+#include "parser.tab.h"
 %}
 
 %%

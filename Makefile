@@ -1,11 +1,14 @@
-casync: casync.tab.o lex.yy.o
-	clang casync.tab.o lex.yy.o -o $@
+casync: parser.tab.o lex.yy.o
+	clang parser.tab.o lex.yy.o -ll -o $@
 
-casync.tab.c: casync.y
+parser.tab.c: parser.y
 	bison -d $<
 
-lex.yy.c: casync.l
+lex.yy.c: lexer.l
 	flex $<
 
+.PHONY: clean
+
 clean:
-	@rm *.o lex.yy.c casync.tab.*
+	@rm *.o
+	@rm lex.yy.c parser.tab.* casync

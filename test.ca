@@ -1,0 +1,16 @@
+async foo {
+  if finished {
+    do_this;
+  } else {
+    do_that;
+    call bar;
+  }
+  await;
+}
+
+sub bar {
+  while testing {
+    test;
+    await;
+  }
+}

@@ -1,2 +1,5 @@
 *.swp
 *.o
+casync
+parser.tab.*
+lex.yy.c
