@@ -13,9 +13,10 @@ int call_id = 2;
 "call"        { yylval.num = call_id++; return CALL; }
 "async"       { return ASYNC; }
 "sub"         { return SUBROUTINE; }
+\(.*\)        { yylval.str = strdup(yytext); return TYPE; }
 ";"           { return SEMICOLON; }
-"{"           { return OPEN_PAREN; }
-"}"           { return CLOSE_PAREN; }
+"{"           { return OPEN_BRACE; }
+"}"           { return CLOSE_BRACE; }
 [a-zA-Z0-9_]+ { yylval.str = strdup(yytext); return IDENT; }
 [ \t\n]       { }
 

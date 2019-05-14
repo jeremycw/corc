@@ -10,10 +10,11 @@ int yylex();
 
 int await_id = 0;
 
-routine_t* new_routine(char* name, statement_t* statements, int is_main) {
+routine_t* new_routine(char* name, statement_t* statements, char* type, int is_main) {
   routine_t* routine = malloc(sizeof(routine_t));
   routine->name = name;
   routine->statements = statements;
+  routine->type = type;
   routine->is_main = is_main;
   routine->next = NULL;
   return routine;
@@ -85,9 +86,9 @@ void yyerror (char const *s);
   int num;
 }
 
-%token OPEN_PAREN CLOSE_PAREN SUBROUTINE ASYNC IF WHILE AWAIT SEMICOLON ELSE EXEC
+%token OPEN_BRACE CLOSE_BRACE SUBROUTINE ASYNC IF WHILE AWAIT SEMICOLON ELSE EXEC
 %token <num> CALL
-%token <str> IDENT
+%token <str> IDENT TYPE RAWC
 
 %type <routine> routine routines
 %type <statement> stmt stmts block else
@@ -100,11 +101,11 @@ routines: routines routine { $$ = add_routine($1, $2); }
   | routine { $$ = $1; }
   ;
 
-routine: ASYNC IDENT block { $$ = new_routine($2, $3, 1); } 
-  | SUBROUTINE IDENT block { $$ = new_routine($2, $3, 0); }
+routine: ASYNC IDENT TYPE block { $$ = new_routine($2, $4, $3, 1); } 
+  | SUBROUTINE IDENT block { $$ = new_routine($2, $3, NULL, 0); }
   ;
 
-block: OPEN_PAREN stmts CLOSE_PAREN { $$ = $2 } ;
+block: OPEN_BRACE stmts CLOSE_BRACE { $$ = $2 } ;
 
 stmts:         { $$ = NULL; }
   | stmts stmt { $$ = add_stmt($1, $2); }

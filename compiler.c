@@ -46,7 +46,7 @@ void output_statements(statement_t* statements, routine_t* routines, int call_id
   while (statement) {
     switch (statement->type) {
       case IF:
-        printf("if (%s(z->data)) {\n", statement->s.if_.condition);
+        printf("if (%s(data)) {\n", statement->s.if_.condition);
         output_statements(statement->s.if_.statements, routines, call_id);
         printf("}\n");
         if (statement->s.if_.else_statements) {
@@ -56,15 +56,15 @@ void output_statements(statement_t* statements, routine_t* routines, int call_id
         }
         break;
       case WHILE:
-        printf("while (%s(z->data)) {\n", statement->s.while_.condition);
+        printf("while (%s(data)) {\n", statement->s.while_.condition);
         output_statements(statement->s.while_.statements, routines, call_id);
         printf("}\n");
         break;
       case EXEC:
-        printf("%s(z->data);\n", statement->s.string);
+        printf("%s(data);\n", statement->s.string);
         break;
       case AWAIT:
-        printf("z->state = %d%d;\n", call_id, statement->s.id);
+        printf("*state = %d%d;\n", call_id, statement->s.id);
         printf("return;\n");
         printf("case %d%d:\n", call_id, statement->s.id);
         break;
@@ -86,8 +86,8 @@ void output_statements(statement_t* statements, routine_t* routines, int call_id
 void compile(routine_t* routines) {
   routine_t* routine = reverse(routines);
   statement_t* statement = routine->statements;
-  printf("void async_%s_program(async_%s_program_t* z) {\n", routine->name, routine->name);
-  printf("switch (z->state) {\n");
+  printf("void %s(int* state, %s data) {\n", routine->name, routine->type);
+  printf("switch (*state) {\n");
   printf("case 0:\n");
   output_statements(statement, routines, 1);
   printf("}\n");

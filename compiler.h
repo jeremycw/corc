@@ -28,6 +28,7 @@ typedef struct statement_s {
 
 typedef struct routine_s {
   char* name;
+  char* type;
   statement_t* statements;
   struct routine_s* next;
   int is_main;

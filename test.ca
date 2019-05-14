@@ -1,4 +1,9 @@
-async foo {
+
+async read_socket (struct test_s*) {
+  while socket_open {
+    await;
+    read_socket;
+  }
   call bar;
   test;
   await;
@@ -12,7 +17,8 @@ async foo {
 }
 
 sub bar {
-  bax;
-  await;
-  bim;
+  while bax {
+    await;
+    bim;
+  }
 }
