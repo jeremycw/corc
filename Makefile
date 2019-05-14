@@ -1,5 +1,7 @@
-casync: parser.tab.o lex.yy.o
-	clang parser.tab.o lex.yy.o -ll -o $@
+CFLAGS=-g
+
+casync: parser.tab.o lex.yy.o compiler.o
+	clang parser.tab.o lex.yy.o compiler.o -ll -o $@
 
 parser.tab.c: parser.y
 	bison -d $<

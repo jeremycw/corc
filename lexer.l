@@ -1,5 +1,7 @@
 %{
 #include "parser.tab.h"
+
+int call_id = 2;
 %}
 
 %%
@@ -8,7 +10,7 @@
 "else"        { return ELSE; }
 "while"       { return WHILE; }
 "await"       { return AWAIT; }
-"call"        { return CALL; }
+"call"        { yylval.num = call_id++; return CALL; }
 "async"       { return ASYNC; }
 "sub"         { return SUBROUTINE; }
 ";"           { return SEMICOLON; }

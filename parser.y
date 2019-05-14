@@ -2,39 +2,11 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include "compiler.h"
 
 #define YYDEBUG 1
 
 int yylex();
-
-typedef struct {
-  char* condition;
-  struct statement_s* statements;
-  struct statement_s* else_statements;
-} if_t;
-
-typedef struct {
-  char* condition;
-  struct statement_s* statements;
-} while_t;
-
-typedef struct statement_s {
-  union {
-    if_t if_;
-    while_t while_;
-    int id;
-    char* string;
-  } s;
-  struct statement_s* next;
-  int type;
-} statement_t;
-
-typedef struct routine_s {
-  char* name;
-  statement_t* statements;
-  struct routine_s* next;
-  int is_main;
-} routine_t;
 
 int await_id = 0;
 
@@ -75,10 +47,11 @@ statement_t* new_await() {
   return statement;
 }
 
-statement_t* new_call(char* sub_name) {
+statement_t* new_call(char* sub_name, int id) {
   statement_t* statement = malloc(sizeof(statement_t));
   statement->type = CALL;
-  statement->s.string = sub_name;
+  statement->s.call_.sub = sub_name;
+  statement->s.call_.id = id;
   statement->next = NULL;
   return statement;
 }
@@ -102,14 +75,6 @@ statement_t* new_while(char* condition, statement_t* statements) {
   return statement;
 }
 
-void compile(routine_t* routines) {
-  routine_t* routine = routines;
-  while (routine) {
-    printf("%s\n", routine->name);
-    routine = routine->next;
-  }
-}
-
 void yyerror (char const *s);
 %}
 
@@ -117,9 +82,11 @@ void yyerror (char const *s);
   char* str;
   struct statement_s* statement;
   struct routine_s* routine;
+  int num;
 }
 
-%token OPEN_PAREN CLOSE_PAREN SUBROUTINE ASYNC IF WHILE AWAIT SEMICOLON CALL ELSE EXEC
+%token OPEN_PAREN CLOSE_PAREN SUBROUTINE ASYNC IF WHILE AWAIT SEMICOLON ELSE EXEC
+%token <num> CALL
 %token <str> IDENT
 
 %type <routine> routine routines
@@ -147,7 +114,7 @@ stmt: IDENT SEMICOLON    { $$ = new_exec($1); }
   | AWAIT SEMICOLON      { $$ = new_await(); }
   | IF IDENT block else  { $$ = new_if($2, $3, $4); }
   | WHILE IDENT block    { $$ = new_while($2, $3); }
-  | CALL IDENT SEMICOLON { $$ = new_call($2); }
+  | CALL IDENT SEMICOLON { $$ = new_call($2, $1); }
   ;
 
 else:          { $$ = NULL; }

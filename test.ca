@@ -1,16 +1,18 @@
 async foo {
-  if finished {
-    do_this;
-  } else {
-    do_that;
-    call bar;
-  }
+  call bar;
+  test;
   await;
+  if approved {
+    thing1;
+    await;
+  } else {
+    thing2;
+    await;
+  }
 }
 
 sub bar {
-  while testing {
-    test;
-    await;
-  }
+  bax;
+  await;
+  bim;
 }
