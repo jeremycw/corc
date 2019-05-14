@@ -16,6 +16,7 @@
   } \
 
 statement_t* reverse_statements(statement_t* statements) {
+  if (!statements) return NULL;
   reverse_list(statement_t, statements);
   statement_t* statement = head;
   while (statement) {
@@ -85,12 +86,26 @@ void output_statements(statement_t* statements, routine_t* routines, int call_id
 
 void compile(routine_t* routines) {
   routine_t* routine = reverse(routines);
+  while (routine) {
+    if (strcmp(routine->name, "__rawc") == 0) {
+      printf("%s\n", routine->type);
+    } else if (routine->is_main) {
+      break;
+    }
+    routine = routine->next;
+  }
   statement_t* statement = routine->statements;
-  printf("void %s(int* state, %s data) {\n", routine->name, routine->type);
+  printf("void %s(int* state, %s) {\n", routine->name, routine->type);
   printf("switch (*state) {\n");
   printf("case 0:\n");
   output_statements(statement, routines, 1);
   printf("}\n");
   printf("}\n");
+  while (routine) {
+    if (strcmp(routine->name, "__rawc") == 0) {
+      printf("%s\n", routine->type);
+    }
+    routine = routine->next;
+  }
 }
 

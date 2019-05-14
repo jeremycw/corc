@@ -1,5 +1,6 @@
+{% #include "test.h"%}
 
-async read_socket (struct test_s*) {
+async read_socket(struct test_s* data) {
   while socket_open {
     await;
     read_socket;
@@ -22,3 +23,10 @@ sub bar {
     bim;
   }
 }
+
+{%
+
+void foo() {
+}
+
+%}

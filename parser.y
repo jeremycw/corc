@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "compiler.h"
 
 #define YYDEBUG 1
@@ -14,7 +15,12 @@ routine_t* new_routine(char* name, statement_t* statements, char* type, int is_m
   routine_t* routine = malloc(sizeof(routine_t));
   routine->name = name;
   routine->statements = statements;
-  routine->type = type;
+  if (type) {
+    type[strlen(type) - 1] = '\0';
+    routine->type = type + 1;
+  } else {
+    routine->type = NULL;
+  }
   routine->is_main = is_main;
   routine->next = NULL;
   return routine;
@@ -76,6 +82,16 @@ statement_t* new_while(char* condition, statement_t* statements) {
   return statement;
 }
 
+routine_t* new_rawc(char* rawc) {
+  routine_t* routine = malloc(sizeof(routine_t));
+  routine->name = "__rawc";
+  routine->statements = NULL;
+  routine->type = rawc;
+  routine->is_main = 0;
+  routine->next = NULL;
+  return routine;
+}
+
 void yyerror (char const *s);
 %}
 
@@ -103,6 +119,7 @@ routines: routines routine { $$ = add_routine($1, $2); }
 
 routine: ASYNC IDENT TYPE block { $$ = new_routine($2, $4, $3, 1); } 
   | SUBROUTINE IDENT block { $$ = new_routine($2, $3, NULL, 0); }
+  | RAWC { $$ = new_rawc($1); }
   ;
 
 block: OPEN_BRACE stmts CLOSE_BRACE { $$ = $2 } ;
