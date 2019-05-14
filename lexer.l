@@ -36,7 +36,6 @@ int raw_capacity = 128;
     raw_buf = realloc(raw_buf, raw_capacity);
   }
   char c = yytext[0];
-  printf("foo: %c", c);
   raw_buf[raw_count] = c;
   raw_count++;
 }
