@@ -63,21 +63,31 @@ statement_t* new_call(char* sub_name, int id) {
   return statement;
 }
 
-statement_t* new_if(char* condition, statement_t* statements, statement_t* else_statements) {
+statement_t* new_if(char* condition, statement_t* statements, statement_t* else_statements, int raw) {
   statement_t* statement = malloc(sizeof(statement_t));
   statement->type = IF;
   statement->s.if_.condition = condition;
+  statement->s.if_.raw = raw;
   statement->s.if_.statements = statements;
   statement->s.if_.else_statements = else_statements;
   statement->next = NULL;
   return statement;
 }
 
-statement_t* new_while(char* condition, statement_t* statements) {
+statement_t* new_while(char* condition, statement_t* statements, int raw) {
   statement_t* statement = malloc(sizeof(statement_t));
   statement->type = WHILE;
+  statement->s.while_.raw = raw;
   statement->s.while_.condition = condition;
   statement->s.while_.statements = statements;
+  statement->next = NULL;
+  return statement;
+}
+
+statement_t* new_rawc_stmt(char* rawc) {
+  statement_t* statement = malloc(sizeof(statement_t));
+  statement->type = RAWC;
+  statement->s.string = rawc;
   statement->next = NULL;
   return statement;
 }
@@ -107,7 +117,7 @@ void yyerror (char const *s);
 %token <str> IDENT TYPE RAWC
 
 %type <routine> routine routines
-%type <statement> stmt stmts block else
+%type <statement> stmt stmts block else if while
 
 %%
 
@@ -130,13 +140,22 @@ stmts:         { $$ = NULL; }
 
 stmt: IDENT SEMICOLON    { $$ = new_exec($1); }
   | AWAIT SEMICOLON      { $$ = new_await(); }
-  | IF IDENT block else  { $$ = new_if($2, $3, $4); }
-  | WHILE IDENT block    { $$ = new_while($2, $3); }
+  | if                   { $$ = $1; }
+  | while                { $$ = $1; }
   | CALL IDENT SEMICOLON { $$ = new_call($2, $1); }
+  | RAWC                 { $$ = new_rawc_stmt($1); }
+  ;
+
+if: IF IDENT block else { $$ = new_if($2, $3, $4, 0); }
+  | IF RAWC block else  { $$ = new_if($2, $3, $4, 1); }
   ;
 
 else:          { $$ = NULL; }
   | ELSE block { $$ = $2; }
+  ;
+
+while: WHILE IDENT block { $$ = new_while($2, $3, 0); }
+  | WHILE RAWC block { $$ = new_while($2, $3, 1); }
   ;
 
 %%
@@ -147,10 +166,5 @@ void yyerror(char const *s) {
 
 int main() {
   yydebug = 1;
-  if (yyparse()) {
-    printf("Failure!\n");
-  } else {
-    printf("Success!\n");
-  }
-  return 0;
+  return yyparse();
 }

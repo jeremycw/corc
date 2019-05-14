@@ -2,6 +2,7 @@ typedef struct {
   char* condition;
   struct statement_s* statements;
   struct statement_s* else_statements;
+  int raw;
 } if_t;
 
 typedef struct {
@@ -12,6 +13,7 @@ typedef struct {
 typedef struct {
   char* condition;
   struct statement_s* statements;
+  int raw;
 } while_t;
 
 typedef struct statement_s {

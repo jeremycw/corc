@@ -1,14 +1,15 @@
-{% #include "test.h"%}
+{% #include "test.h" %}
 
 async read_socket(struct test_s* data) {
-  while socket_open {
+  while {% !data->closed %} {
     await;
     read_socket;
   }
   call bar;
+  {% data.test = 0; %}
   test;
   await;
-  if approved {
+  if {% data.test == 1 %} {
     thing1;
     await;
   } else {

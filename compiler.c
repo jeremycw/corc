@@ -47,7 +47,11 @@ void output_statements(statement_t* statements, routine_t* routines, int call_id
   while (statement) {
     switch (statement->type) {
       case IF:
-        printf("if (%s(data)) {\n", statement->s.if_.condition);
+        if (statement->s.if_.raw) {
+          printf("if (%s) {\n", statement->s.if_.condition);
+        } else {
+          printf("if (%s(data)) {\n", statement->s.if_.condition);
+        }
         output_statements(statement->s.if_.statements, routines, call_id);
         printf("}\n");
         if (statement->s.if_.else_statements) {
@@ -57,7 +61,11 @@ void output_statements(statement_t* statements, routine_t* routines, int call_id
         }
         break;
       case WHILE:
-        printf("while (%s(data)) {\n", statement->s.while_.condition);
+        if (statements->s.while_.raw) {
+          printf("while (%s) {\n", statement->s.while_.condition);
+        } else {
+          printf("while (%s(data)) {\n", statement->s.while_.condition);
+        }
         output_statements(statement->s.while_.statements, routines, call_id);
         printf("}\n");
         break;
@@ -68,6 +76,9 @@ void output_statements(statement_t* statements, routine_t* routines, int call_id
         printf("*state = %d%d;\n", call_id, statement->s.id);
         printf("return;\n");
         printf("case %d%d:\n", call_id, statement->s.id);
+        break;
+      case RAWC:
+        printf("%s\n", statement->s.string);
         break;
       case CALL:
         routine = routines;
