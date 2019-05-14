@@ -96,7 +96,8 @@ void output_statements(statement_t* statements, routine_t* routines, int call_id
 }
 
 void compile(routine_t* routines) {
-  routine_t* routine = reverse(routines);
+  routines = reverse(routines);
+  routine_t* routine = routines;
   while (routine) {
     if (strcmp(routine->name, "__rawc") == 0) {
       printf("%s\n", routine->type);

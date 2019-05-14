@@ -6,7 +6,7 @@ async read_socket(struct test_s* data) {
     read_socket;
   }
   call bar;
-  {% data.test = 0; %}
+  {% data->test = 0; %}
   test;
   await;
   if {% data.test == 1 %} {
