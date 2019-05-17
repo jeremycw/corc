@@ -11,24 +11,31 @@ int yylex();
 
 int await_id = 0;
 
-routine_t* new_routine(char* name, statement_t* statements, char* type, int is_main) {
-  routine_t* routine = malloc(sizeof(routine_t));
-  routine->name = name;
-  routine->statements = statements;
-  if (type) {
-    type[strlen(type) - 1] = '\0';
-    routine->type = type + 1;
-  } else {
-    routine->type = NULL;
-  }
-  routine->is_main = is_main;
-  routine->next = NULL;
-  return routine;
+node_t* new_subroutine(char* name, statement_t* statements) {
+  node_t* node = malloc(sizeof(node_t));
+  node->val.subroutine.name = name;
+  node->statements = statements;
+  node->type = SUBROUTINE;
+  node->next = NULL;
+  return node;
 }
 
-routine_t* add_routine(routine_t* routines, routine_t* routine) {
-  routine->next = routines;
-  return routine;
+node_t* new_coroutine(char* name, char* rettype, char* type, statement_t* statements) {
+  node_t* node = malloc(sizeof(node_t));
+  node->val.coroutine.name = name;
+  node->statements = statements;
+  type[strlen(type) - 1] = '\0';
+  node->val.coroutine.type = type + 1;
+  rettype[strlen(rettype) - 1] = '\0';
+  node->val.coroutine.rettype = rettype + 1;
+  node->type = ASYNC;
+  node->next = NULL;
+  return node;
+}
+
+node_t* add_node(node_t* nodes, node_t* node) {
+  node->next = nodes;
+  return node;
 }
 
 statement_t* add_stmt(statement_t* statements, statement_t* statement) {
@@ -46,10 +53,12 @@ statement_t* new_exec(char* fn) {
   return statement;
 }
 
-statement_t* new_await() {
+statement_t* new_yield(char* val, int raw) {
   statement_t* statement = malloc(sizeof(statement_t));
-  statement->type = AWAIT;
-  statement->s.id = await_id++;
+  statement->type = YIELD;
+  statement->s.yield_.id = await_id++;
+  statement->s.yield_.exp = val;
+  statement->s.yield_.raw = raw;
   statement->next = NULL;
   return statement;
 }
@@ -92,14 +101,13 @@ statement_t* new_rawc_stmt(char* rawc) {
   return statement;
 }
 
-routine_t* new_rawc(char* rawc) {
-  routine_t* routine = malloc(sizeof(routine_t));
-  routine->name = "__rawc";
-  routine->statements = NULL;
-  routine->type = rawc;
-  routine->is_main = 0;
-  routine->next = NULL;
-  return routine;
+node_t* new_rawc(char* rawc) {
+  node_t* node = malloc(sizeof(node_t));
+  node->val.string = rawc;
+  node->type = RAWC;
+  node->statements = NULL;
+  node->next = NULL;
+  return node;
 }
 
 void yyerror (char const *s);
@@ -108,27 +116,27 @@ void yyerror (char const *s);
 %union {
   char* str;
   struct statement_s* statement;
-  struct routine_s* routine;
+  struct node_s* node;
   int num;
 }
 
-%token OPEN_BRACE CLOSE_BRACE SUBROUTINE ASYNC IF WHILE AWAIT SEMICOLON ELSE EXEC
+%token OPEN_BRACE CLOSE_BRACE SUBROUTINE ASYNC IF WHILE YIELD SEMICOLON ELSE EXEC
 %token <num> CALL
 %token <str> IDENT TYPE RAWC
 
-%type <routine> routine routines
-%type <statement> stmt stmts block else if while
+%type <node> routine routines
+%type <statement> stmt stmts block else if while yield
 
 %%
 
 program: routines { compile($1); }
 
-routines: routines routine { $$ = add_routine($1, $2); }
+routines: routines routine { $$ = add_node($1, $2); }
   | routine { $$ = $1; }
   ;
 
-routine: ASYNC IDENT TYPE block { $$ = new_routine($2, $4, $3, 1); } 
-  | SUBROUTINE IDENT block { $$ = new_routine($2, $3, NULL, 0); }
+routine: ASYNC TYPE IDENT TYPE block { $$ = new_coroutine($3, $2, $4, $5); } 
+  | SUBROUTINE IDENT block { $$ = new_subroutine($2, $3); }
   | RAWC { $$ = new_rawc($1); }
   ;
 
@@ -139,7 +147,7 @@ stmts:         { $$ = NULL; }
   ;
 
 stmt: IDENT SEMICOLON    { $$ = new_exec($1); }
-  | AWAIT SEMICOLON      { $$ = new_await(); }
+  | yield                { $$ = $1; }
   | if                   { $$ = $1; }
   | while                { $$ = $1; }
   | CALL IDENT SEMICOLON { $$ = new_call($2, $1); }
@@ -156,6 +164,11 @@ else:          { $$ = NULL; }
 
 while: WHILE IDENT block { $$ = new_while($2, $3, 0); }
   | WHILE RAWC block { $$ = new_while($2, $3, 1); }
+  ;
+
+yield: YIELD SEMICOLON    { $$ = new_yield(NULL, 0); }
+  | YIELD IDENT SEMICOLON { $$ = new_yield($2, 0); }
+  | YIELD RAWC SEMICOLON  { $$ = new_yield($2, 1); }
   ;
 
 %%

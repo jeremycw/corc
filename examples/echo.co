@@ -1,0 +1,163 @@
+{%
+
+#include <stdlib.h>
+#include <fcntl.h>
+#include <ev.h>
+#include <errno.h>
+#include <netdb.h>
+#include <unistd.h>
+
+#define spawn_fiber(coroutine, param) \
+  coroutine##_ctx_t* ctx = malloc(sizeof(coroutine##_ctx_t)); \
+  ctx->state = 0; \
+  ctx->arg = param; \
+  await_t await = call_##coroutine(&ctx->state, ctx->arg); \
+  schedule_fiber(await, NULL, (void*)ctx, coroutine##_callback);
+
+#define declare_fiber(name, type) \
+  typedef struct { \
+    int state; \
+    type arg; \
+  } name##_ctx_t; \
+  void name##_callback(EV_P_ ev_io *w, int revents) { \
+    name##_ctx_t* ctx = (name##_ctx_t*)w->data; \
+    await_t await = call_##name(&ctx->state, ctx->arg); \
+    schedule_fiber(await, w, (void*)ctx, name##_callback); \
+  }
+
+struct ev_loop* loop;
+
+struct echo_server_s {
+  int socket;
+  int port;
+  socklen_t len;
+  struct sockaddr_in addr;
+};
+
+struct echo_session_s {
+  int socket;
+  char* buf;
+  int bytes;
+  int active;
+};
+
+typedef struct {
+  int fd;
+  int type;
+} await_t;
+
+await_t call_echo_server_listen(int* state, struct echo_server_s* arg);
+await_t call_echo_session(int* state, struct echo_session_s* arg);
+
+void schedule_fiber(await_t await, ev_io *io, void* ctx, void(*cb)(struct ev_loop*, ev_io*, int)) {
+  if (io) {
+    ev_io_stop(loop, io);
+  } else {
+    io = malloc(sizeof(ev_io));
+  }
+  io->data = ctx;
+  ev_io_init(io, cb, await.fd, await.type);
+  ev_io_start(loop, io);
+}
+
+await_t fiber_await(int fd, int type) {
+  await_t await;
+  await.fd = fd;
+  await.type = type;
+  return await;
+}
+
+declare_fiber(echo_server_listen, struct echo_server_s*);
+declare_fiber(echo_session, struct echo_session_s*);
+
+void accept_connection(struct echo_server_s* arg) {
+  int sock = accept(arg->socket, (struct sockaddr *)&arg->addr, &arg->len);
+  if (sock > 0) {
+    struct echo_session_s* session = malloc(sizeof(struct echo_session_s));
+    session->socket = sock;
+    int flags = fcntl(sock, F_GETFL, 0);
+    fcntl(sock, F_SETFL, flags | O_NONBLOCK);
+    spawn_fiber(echo_session, session);
+  }
+}
+
+void bind_localhost(int s, struct sockaddr_in* addr, int port) {
+  addr->sin_family = AF_INET;
+  addr->sin_addr.s_addr = INADDR_ANY;
+  addr->sin_port = htons(port);
+  int rc = bind(s, (struct sockaddr *)addr, sizeof(struct sockaddr_in));;
+  if (rc < 0) {
+    exit(1);
+  }
+}
+
+void echo_listen(struct echo_server_s* serv) {
+  serv->socket = socket(AF_INET, SOCK_STREAM, 0);
+  bind_localhost(serv->socket, &serv->addr, serv->port);
+  serv->len = sizeof(serv->addr);
+  listen(serv->socket, 10);
+}
+
+void read_client_socket(struct echo_session_s* session) {
+  errno = 0;
+  session->bytes = read(session->socket, session->buf, 128);
+  if (session->bytes == 0) {
+    session->active = 0;
+  }
+}
+
+void write_client_socket(struct echo_session_s* session) {
+  errno = 0;
+  write(session->socket, session->buf, session->bytes);
+}
+
+void start_session(struct echo_session_s* session) {
+  session->buf = malloc(128);
+  session->active = 1;
+}
+
+void end_session(struct echo_session_s* session) {
+  close(session->socket);
+  free(session->buf);
+}
+
+%}
+
+coroutine (await_t) echo_server_listen(struct echo_server_s*) {
+  echo_listen;
+  while {% 1 %} {
+    yield {% fiber_await(arg->socket, EV_READ); %}; //wait for accept readability
+    accept_connection;
+  }
+}
+
+coroutine (await_t) echo_session(struct echo_session_s*) {
+  start_session;
+  while {% arg->active %} {
+    read_client_socket;
+    while {% errno == EWOULDBLOCK %} {
+      yield {% fiber_await(arg->socket, EV_READ); %}; //await readability
+      read_client_socket;
+    }
+    if {% arg->active %} {
+      write_client_socket;
+      while {% errno == EWOULDBLOCK %} {
+        yield {% fiber_await(arg->socket, EV_WRITE); %}; //await writeability
+        write_client_socket;
+      }
+    }
+  }
+  end_session;
+}
+
+{%
+
+int main() {
+  loop = EV_DEFAULT;
+  struct echo_server_s* serv = malloc(sizeof(struct echo_server_s));
+  serv->port = 8000;
+  spawn_fiber(echo_server_listen, serv);
+  ev_run(loop, 0);
+}
+
+%}

@@ -1,5 +1,5 @@
 *.swp
 *.o
-casync
+cocc
 parser.tab.*
 lex.yy.c

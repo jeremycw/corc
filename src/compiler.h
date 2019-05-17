@@ -11,6 +11,12 @@ typedef struct {
 } call_t;
 
 typedef struct {
+  char* exp;
+  int raw;
+  int id;
+} yield_t;
+
+typedef struct {
   char* condition;
   struct statement_s* statements;
   int raw;
@@ -21,6 +27,7 @@ typedef struct statement_s {
     if_t if_;
     while_t while_;
     call_t call_;
+    yield_t yield_;
     int id;
     char* string;
   } s;
@@ -28,12 +35,25 @@ typedef struct statement_s {
   int type;
 } statement_t;
 
-typedef struct routine_s {
+typedef struct {
+  char* name;
+} subroutine_t;
+
+typedef struct {
   char* name;
   char* type;
-  statement_t* statements;
-  struct routine_s* next;
-  int is_main;
-} routine_t;
+  char* rettype;
+} coroutine_t;
 
-void compile(routine_t* routines);
+typedef struct node_s {
+  union {
+    coroutine_t coroutine;
+    subroutine_t subroutine;
+    char* string;
+  } val;
+  struct node_s* next;
+  statement_t* statements;
+  int type;
+} node_t;
+
+void compile(node_t* root);

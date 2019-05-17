@@ -15,12 +15,13 @@ int raw_capacity = 128;
 "if"          { return IF; }
 "else"        { return ELSE; }
 "while"       { return WHILE; }
-"await"       { return AWAIT; }
+"yield"       { return YIELD; }
 "call"        { yylval.num = call_id++; return CALL; }
-"async"       { return ASYNC; }
+"coroutine"   { return ASYNC; }
 "sub"         { return SUBROUTINE; }
 \([^\)]*\)    { yylval.str = strdup(yytext); return TYPE; }
 "{%"          { BEGIN(raw); }
+\/\/.*\n        { }
 <raw>"%}"     {
   BEGIN(INITIAL);
   raw_buf[raw_count] = '\0';
