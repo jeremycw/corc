@@ -4,9 +4,11 @@ Stackless coroutine compiler for C
 
 ## Purpose
 
-State machines are not a good solution for asynchronous logic. This compiler allows
-you to add stackless coroutines to your C program. These coroutines enable you to
-structure your asynchronous logic in a more readable and maintainable way.
+Unstructured state machines are not a good solution for asynchronous logic. They
+have all the same problems as `goto` making the logic of your program very difficult
+to follow. This compiler allows you to add stackless coroutines to your C program.
+These coroutines enable you to structure your asynchronous logic in a more readable
+and maintainable way.
 
 ## Usage
 
@@ -61,6 +63,7 @@ int main() {
   int state = 0; //stores the state of the coroutine
   struct example_s ctx = { .i = 0, .count_twice = 1 };
 
+  //cocc generates a procedure that takes an int pointer and the argument type
   call_count_to_five(&state, &ctx); //returns 1
   call_count_to_five(&state, &ctx); //returns 2
   call_count_to_five(&state, &ctx); //returns 3
@@ -79,4 +82,7 @@ int main() {
 
 The compiler operates on standard input and output. To compile this program:
 `cocc < example.co > example.c`
+
+Take a look at `examples/echo.co` for a more real world example that implements
+fibers and an echo server on top of libev.
 
