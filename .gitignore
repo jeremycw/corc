@@ -1,5 +1,5 @@
 *.swp
 *.o
-cocc
+corc
 parser.tab.*
 lex.yy.c

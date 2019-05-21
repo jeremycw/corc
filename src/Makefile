@@ -13,4 +13,4 @@ lex.yy.c: lexer.l
 
 clean:
 	@rm *.o
-	@rm lex.yy.c parser.tab.* casync
+	@rm lex.yy.c parser.tab.* corc

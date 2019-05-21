@@ -5,6 +5,5 @@ echo.c: echo.co ../src/corc
 	../src/corc < echo.co > echo.c
 
 ../src/corc:
-	cd ../src
-	make
+	cd ../src; make
 
