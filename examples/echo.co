@@ -22,6 +22,7 @@
   void name##_callback(EV_P_ ev_io *w, int revents) { \
     name##_ctx_t* ctx = (name##_ctx_t*)w->data; \
     await_t await = call_##name(&ctx->state, ctx->arg); \
+    if (ctx->state == -1) await.fd = -1; \
     schedule_fiber(await, w, (void*)ctx, name##_callback); \
   }
 
@@ -70,10 +71,6 @@ await_t fiber_await(int fd, int type) {
   await.fd = fd;
   await.type = type;
   return await;
-}
-
-await_t fiber_end() {
-  return fiber_await(-1, 0);
 }
 
 declare_fiber(echo_server_listen, struct echo_server_s*);
@@ -139,7 +136,6 @@ coroutine (await_t) echo_server_listen(struct echo_server_s*) {
     yield {% fiber_await(arg->socket, EV_READ); %}; //wait for accept readability
     accept_connection;
   }
-  {% return fiber_end(); %}
 }
 
 coroutine (await_t) echo_session(struct echo_session_s*) {
@@ -159,7 +155,6 @@ coroutine (await_t) echo_session(struct echo_session_s*) {
     }
   }
   end_session;
-  {% return fiber_end(); %}
 }
 
 {%
