@@ -118,6 +118,9 @@ void compile(node_t* root) {
       printf("case 0:\n");
       output_statements(statement, root, 1);
       printf("}\n");
+      printf("*state = -1;\n");
+      printf("%s ret;\n", coro.rettype);
+      printf("return ret;\n");
       printf("}\n");
     }
     node = node->next;
