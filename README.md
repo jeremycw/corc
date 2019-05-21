@@ -75,6 +75,9 @@ int main() {
   call_count_to_five(&state, &ctx); //returns 3
   call_count_to_five(&state, &ctx); //returns 4
   call_count_to_five(&state, &ctx); //returns 5
+
+  call_count_to_five(&state, &ctx); //returns undefined int, state will be -1;
+  assert(state == -1);
 }
 
 %}
