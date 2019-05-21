@@ -1,6 +1,6 @@
 CFLAGS=-g
 
-cocc: parser.tab.o lex.yy.o compiler.o
+corc: parser.tab.o lex.yy.o compiler.o
 	clang parser.tab.o lex.yy.o compiler.o -ll -o $@
 
 parser.tab.c: parser.y

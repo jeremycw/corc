@@ -1,4 +1,4 @@
-# cocc
+# corc
 
 Stackless coroutine compiler for C
 
@@ -63,7 +63,7 @@ int main() {
   int state = 0; //stores the state of the coroutine
   struct example_s ctx = { .i = 0, .count_twice = 1 };
 
-  //cocc generates a procedure that takes an int pointer and the argument type
+  //corc generates a procedure that takes an int pointer and the argument type
   call_count_to_five(&state, &ctx); //returns 1
   call_count_to_five(&state, &ctx); //returns 2
   call_count_to_five(&state, &ctx); //returns 3
@@ -81,7 +81,7 @@ int main() {
 ```
 
 The compiler operates on standard input and output. To compile this program:
-`cocc < example.co > example.c`
+`corc < example.co > example.c`
 
 Take a look at `examples/echo.co` for a more real world example that implements
 fibers and an echo server on top of libev.
