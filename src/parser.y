@@ -20,14 +20,28 @@ node_t* new_subroutine(char* name, statement_t* statements) {
   return node;
 }
 
+int whitespace(char c) {
+  return c == ' ' || c == '\n' || c == '\t' || c == '\r';
+}
+
+char* trim(char* string, int len) {
+  int i = 0;
+  while (string[i] && whitespace(string[i])) i++;
+  int j = len - 1;
+  while (j >= 0 && whitespace(string[j])) j--;
+  string[j+1] = '\0';
+  return &string[i];
+}
+
 node_t* new_coroutine(char* name, char* rettype, char* type, statement_t* statements) {
   node_t* node = malloc(sizeof(node_t));
   node->val.coroutine.name = name;
   node->statements = statements;
   type[strlen(type) - 1] = '\0';
   node->val.coroutine.type = type + 1;
-  rettype[strlen(rettype) - 1] = '\0';
-  node->val.coroutine.rettype = rettype + 1;
+  int retlen = strlen(rettype);
+  rettype[retlen - 1] = '\0';
+  node->val.coroutine.rettype = trim(rettype + 1, retlen - 2);
   node->type = ASYNC;
   node->next = NULL;
   return node;

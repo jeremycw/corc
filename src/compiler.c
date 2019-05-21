@@ -119,8 +119,12 @@ void compile(node_t* root) {
       output_statements(statement, root, 1);
       printf("}\n");
       printf("*state = -1;\n");
-      printf("%s ret;\n", coro.rettype);
-      printf("return ret;\n");
+      if (strcmp("void", coro.rettype) == 0) {
+        printf("return;\n");
+      } else {
+        printf("%s ret;\n", coro.rettype);
+        printf("return ret;\n");
+      }
       printf("}\n");
     }
     node = node->next;
