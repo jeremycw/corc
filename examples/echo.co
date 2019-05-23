@@ -2,31 +2,13 @@
 
 #include <stdlib.h>
 #include <fcntl.h>
-#include <ev.h>
 #include <errno.h>
 #include <netdb.h>
 #include <unistd.h>
+#define FIBER_IMPL
+#include "fiber.h"
 
-#define spawn_fiber(coroutine, param) \
-  coroutine##_ctx_t* ctx = malloc(sizeof(coroutine##_ctx_t)); \
-  ctx->state = 0; \
-  ctx->arg = param; \
-  await_t await = call_##coroutine(&ctx->state, ctx->arg); \
-  schedule_fiber(await, NULL, (void*)ctx, coroutine##_callback);
-
-#define declare_fiber(name, type) \
-  typedef struct { \
-    int state; \
-    type arg; \
-  } name##_ctx_t; \
-  void name##_callback(EV_P_ ev_io *w, int revents) { \
-    name##_ctx_t* ctx = (name##_ctx_t*)w->data; \
-    await_t await = call_##name(&ctx->state, ctx->arg); \
-    if (ctx->state == -1) await.fd = -1; \
-    schedule_fiber(await, w, (void*)ctx, name##_callback); \
-  }
-
-struct ev_loop* loop;
+#define BUF_SIZE 128
 
 struct echo_server_s {
   int socket;
@@ -42,36 +24,8 @@ struct echo_session_s {
   int active;
 };
 
-typedef struct {
-  int fd;
-  int type;
-} await_t;
-
 await_t call_echo_server_listen(int* state, struct echo_server_s* arg);
 await_t call_echo_session(int* state, struct echo_session_s* arg);
-
-void schedule_fiber(await_t await, ev_io *io, void* ctx, void(*cb)(struct ev_loop*, ev_io*, int)) {
-  if (io) {
-    ev_io_stop(loop, io);
-  } else {
-    io = malloc(sizeof(ev_io));
-  }
-  if (await.fd == -1) {
-    ev_io_stop(loop, io);
-    free(io);
-  } else {
-    io->data = ctx;
-    ev_io_init(io, cb, await.fd, await.type);
-    ev_io_start(loop, io);
-  }
-}
-
-await_t fiber_await(int fd, int type) {
-  await_t await;
-  await.fd = fd;
-  await.type = type;
-  return await;
-}
 
 declare_fiber(echo_server_listen, struct echo_server_s*);
 declare_fiber(echo_session, struct echo_session_s*);
@@ -106,7 +60,10 @@ void echo_listen(struct echo_server_s* serv) {
 
 void read_client_socket(struct echo_session_s* session) {
   errno = 0;
-  session->bytes = read(session->socket, session->buf, 128);
+  if (!session->buf) {
+    session->buf = malloc(BUF_SIZE);
+  }
+  session->bytes = read(session->socket, session->buf, BUF_SIZE);
   if (session->bytes == 0) {
     session->active = 0;
   }
@@ -117,14 +74,13 @@ void write_client_socket(struct echo_session_s* session) {
   write(session->socket, session->buf, session->bytes);
 }
 
-void start_session(struct echo_session_s* session) {
-  session->buf = malloc(128);
-  session->active = 1;
+void free_buffer(struct echo_session_s* session) {
+  free(session->buf);
+  session->buf = NULL;
 }
 
 void end_session(struct echo_session_s* session) {
   close(session->socket);
-  free(session->buf);
   free(session);
 }
 
@@ -139,10 +95,11 @@ coroutine (await_t) echo_server_listen(struct echo_server_s*) {
 }
 
 coroutine (await_t) echo_session(struct echo_session_s*) {
-  start_session;
+  {% arg->active = 1; %}
   while {% arg->active %} {
     read_client_socket;
     while {% errno == EWOULDBLOCK %} {
+      free_buffer;
       yield {% fiber_await(arg->socket, EV_READ); %}; //await readability
       read_client_socket;
     }
@@ -160,11 +117,11 @@ coroutine (await_t) echo_session(struct echo_session_s*) {
 {%
 
 int main() {
-  loop = EV_DEFAULT;
+  fiber_scheduler_init();
   struct echo_server_s* serv = malloc(sizeof(struct echo_server_s));
   serv->port = 8000;
   spawn_fiber(echo_server_listen, serv);
-  ev_run(loop, 0);
+  fiber_scheduler_run();
   free(serv);
 }
 

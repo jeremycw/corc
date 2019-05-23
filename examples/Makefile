@@ -1,4 +1,4 @@
-echo-server: echo.c
+echo-server: echo.c fiber.h
 	clang echo.c -l ev -o echo-server
 
 echo.c: echo.co ../src/corc
