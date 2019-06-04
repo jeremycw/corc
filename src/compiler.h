@@ -1,3 +1,6 @@
+#ifndef COMPILER_H
+#define COMPILER_H
+
 typedef struct {
   char* condition;
   struct statement_s* statements;
@@ -57,3 +60,5 @@ typedef struct node_s {
 } node_t;
 
 void compile(node_t* root);
+
+#endif
