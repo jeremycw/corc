@@ -1,5 +1,5 @@
 corc: parser.tab.o lex.yy.o compiler.o
-	clang parser.tab.o lex.yy.o compiler.o -ll -o $@
+	$(CC) -W -Wall $^ -ll -o $@
 
 parser.tab.c: parser.y
 	bison -d $<
