@@ -1,0 +1,177 @@
+{%
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <netdb.h>
+#include <unistd.h>
+#define FIBER_IMPL
+#include "fiber.h"
+#include "http_parser.h"
+#include "varray.h"
+
+#define BUF_SIZE 1024
+#define RESPONSE "HTTP/1.1 200 Ok\r\nContent-Type: text/plain\r\nContent-Length: 12\r\n\r\nHello World!"
+
+varray_decl(http_token_t)
+varray_defn(http_token_t)
+
+struct http_server_s {
+  int socket;
+  int port;
+  socklen_t len;
+  struct sockaddr_in addr;
+};
+
+struct http_session_s {
+  http_parser_t parser;
+  int socket;
+  char* buf;
+  int bytes;
+  int active;
+  http_token_t token;
+  varray_t(http_token_t) tokens;
+};
+
+await_t call_http_server_listen(int* state, struct http_server_s* arg);
+await_t call_http_session(int* state, struct http_session_s* arg);
+
+declare_fiber(http_server_listen, struct http_server_s*);
+declare_fiber(http_session, struct http_session_s*);
+
+void accept_connection(struct http_server_s* arg) {
+  int sock = accept(arg->socket, (struct sockaddr *)&arg->addr, &arg->len);
+  if (sock > 0) {
+    struct http_session_s* session = malloc(sizeof(struct http_session_s));
+    *session = (struct http_session_s) { .socket = sock };
+     varray_init(http_token_t, &session->tokens, 32);
+    int flags = fcntl(sock, F_GETFL, 0);
+    fcntl(sock, F_SETFL, flags | O_NONBLOCK);
+    spawn_fiber(http_session, session);
+  }
+}
+
+void bind_localhost(int s, struct sockaddr_in* addr, int port) {
+  addr->sin_family = AF_INET;
+  addr->sin_addr.s_addr = INADDR_ANY;
+  addr->sin_port = htons(port);
+  int rc = bind(s, (struct sockaddr *)addr, sizeof(struct sockaddr_in));;
+  if (rc < 0) {
+    exit(1);
+  }
+}
+
+void http_listen(struct http_server_s* serv) {
+  serv->socket = socket(AF_INET, SOCK_STREAM, 0);
+  bind_localhost(serv->socket, &serv->addr, serv->port);
+  serv->len = sizeof(serv->addr);
+  listen(serv->socket, 128);
+}
+
+void read_client_socket(struct http_session_s* session) {
+  errno = 0;
+  if (!session->buf) {
+    session->buf = malloc(BUF_SIZE);
+  }
+  int bytes = read(session->socket, session->buf + session->bytes, BUF_SIZE - session->bytes);
+  if (bytes > 0) session->bytes += bytes;
+  //printf("%.*s\n", session->bytes, session->buf);
+  if (bytes == 0) {
+    session->active = 0;
+  }
+}
+
+void write_client_socket(struct http_session_s* session) {
+  errno = 0;
+  write(session->socket, RESPONSE, sizeof(RESPONSE) - 1);
+}
+
+void free_buffer(struct http_session_s* session) {
+  free(session->buf);
+  session->buf = NULL;
+}
+
+void end_session(struct http_session_s* session) {
+  close(session->socket);
+  free(session);
+}
+
+void parse_tokens(struct http_session_s* session) {
+  static char const * names[] = { "METHOD", "TARGET", "VERSION", "HEADER_KEY", "HEADER_VALUE", "HEADER_END", "NONE", "BODY" };
+  http_token_t token;
+  do {
+    token = http_parse(&session->parser, session->buf, session->bytes);
+    //printf("%s: %.*s %d\n", names[token.type], token.len, &session->buf[token.index], token.len);
+    if (token.type != HTTP_NONE) {
+      session->token = token;
+      varray_push(http_token_t, &session->tokens, token);
+    }
+  } while (token.type != HTTP_NONE);
+}
+
+void init_session(struct http_session_s* session) {
+  *session = (struct http_session_s) {
+    .socket = session->socket,
+    .buf = session->buf,
+    .active = session->active,
+    .tokens = session->tokens
+  };
+  session->tokens.size = 0;
+}
+
+%}
+
+coroutine (await_t) http_server_listen(struct http_server_s*) {
+  http_listen;
+  while {% 1 %} {
+    yield {% fiber_await(arg->socket, EV_READ); %}; //wait for accept readability
+    accept_connection;
+  }
+}
+
+coroutine (await_t) http_session(struct http_session_s*) {
+  {% arg->active = 1; %}
+  while {% arg->active %} {
+    init_session;
+    while {% arg->token.type != HTTP_BODY && arg->active %} {
+      call read_socket;
+      parse_tokens;
+    }
+    if {% arg->token.len > 0 %} {
+      while {% arg->bytes < arg->token.index + arg->token.len && arg->active %} {
+        call read_socket;
+      }
+    }
+    if {% arg->active %} {
+      write_client_socket;
+      while {% errno == EWOULDBLOCK %} {
+        yield {% fiber_await(arg->socket, EV_WRITE); %}; //await writeability
+        write_client_socket;
+      }
+    }
+    free_buffer;
+  }
+  {% close(arg->socket); %}
+}
+
+sub read_socket {
+  read_client_socket;
+  while {% errno == EWOULDBLOCK %} {
+    yield {% fiber_await(arg->socket, EV_READ); %}; //await readability
+    read_client_socket;
+  }
+}
+
+{%
+
+int main() {
+  fiber_scheduler_init();
+  struct http_server_s* serv = malloc(sizeof(struct http_server_s));
+  serv->port = 8080;
+  spawn_fiber(http_server_listen, serv);
+  fiber_scheduler_run();
+  free(serv);
+}
+
+%}
