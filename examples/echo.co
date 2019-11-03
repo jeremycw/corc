@@ -89,7 +89,7 @@ void end_session(struct echo_session_s* session) {
 coroutine (await_t) echo_server_listen(struct echo_server_s*) {
   echo_listen;
   while {% 1 %} {
-    yield {% fiber_await(arg->socket, EV_READ); %}; //wait for accept readability
+    yield {% fiber_await(arg->socket, EV_READ, -1.f); %}; //wait for accept readability
     accept_connection;
   }
 }
@@ -100,13 +100,18 @@ coroutine (await_t) echo_session(struct echo_session_s*) {
     read_client_socket;
     while {% errno == EWOULDBLOCK %} {
       free_buffer;
-      yield {% fiber_await(arg->socket, EV_READ); %}; //await readability
-      read_client_socket;
+      yield {% fiber_await(arg->socket, EV_READ, 10.f); %}; //await readability
+      if {% fibererror %} {
+        {% arg->active = 0; %}
+        {% fibererror = 0; %}
+      } else {
+        read_client_socket;
+      }
     }
     if {% arg->active %} {
       write_client_socket;
       while {% errno == EWOULDBLOCK %} {
-        yield {% fiber_await(arg->socket, EV_WRITE); %}; //await writeability
+        yield {% fiber_await(arg->socket, EV_WRITE, -1.f); %}; //await writeability
         write_client_socket;
       }
     }

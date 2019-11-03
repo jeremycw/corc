@@ -125,7 +125,7 @@ void init_session(struct http_session_s* session) {
 coroutine (await_t) http_server_listen(struct http_server_s*) {
   http_listen;
   while {% 1 %} {
-    yield {% fiber_await(arg->socket, EV_READ); %}; //wait for accept readability
+    yield {% fiber_await(arg->socket, EV_READ, -1.f); %}; //wait for accept readability
     accept_connection;
   }
 }
@@ -146,7 +146,7 @@ coroutine (await_t) http_session(struct http_session_s*) {
     if {% arg->active %} {
       write_client_socket;
       while {% errno == EWOULDBLOCK %} {
-        yield {% fiber_await(arg->socket, EV_WRITE); %}; //await writeability
+        yield {% fiber_await(arg->socket, EV_WRITE, 20.f); %}; //await writeability
         write_client_socket;
       }
     }
@@ -158,8 +158,13 @@ coroutine (await_t) http_session(struct http_session_s*) {
 sub read_socket {
   read_client_socket;
   while {% errno == EWOULDBLOCK %} {
-    yield {% fiber_await(arg->socket, EV_READ); %}; //await readability
-    read_client_socket;
+    yield {% fiber_await(arg->socket, EV_READ, 20.f); %}; //await readability
+    if {% fibererror %} {
+      {% arg->active = 0; %}
+      {% fibererror = 0; %}
+    } else {
+      read_client_socket;
+    }
   }
 }
 
