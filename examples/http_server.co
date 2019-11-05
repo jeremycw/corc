@@ -76,7 +76,6 @@ void read_client_socket(struct http_session_s* session) {
   }
   int bytes = read(session->socket, session->buf + session->bytes, BUF_SIZE - session->bytes);
   if (bytes > 0) session->bytes += bytes;
-  //printf("%.*s\n", session->bytes, session->buf);
   if (bytes == 0) {
     session->active = 0;
   }
@@ -102,7 +101,6 @@ void parse_tokens(struct http_session_s* session) {
   http_token_t token;
   do {
     token = http_parse(&session->parser, session->buf, session->bytes);
-    //printf("%s: %.*s %d\n", names[token.type], token.len, &session->buf[token.index], token.len);
     if (token.type != HTTP_NONE) {
       session->token = token;
       varray_push(http_token_t, &session->tokens, token);
@@ -152,7 +150,7 @@ coroutine (await_t) http_session(struct http_session_s*) {
     }
     free_buffer;
   }
-  {% close(arg->socket); %}
+  end_session;
 }
 
 sub read_socket {
