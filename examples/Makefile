@@ -7,7 +7,7 @@ http_server.c: http_server.co ../src/corc
 	../src/corc < http_server.co > http_server.c
 
 echo-server: echo.c fiber.h
-	clang echo.c -l ev -o echo-server
+	$(CC) echo.c -l ev -o echo-server
 
 echo.c: echo.co ../src/corc
 	../src/corc < echo.co > echo.c

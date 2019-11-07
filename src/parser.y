@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "compiler.h"
+#include "parser.tab.h"
 
 #define YYDEBUG 1
 
@@ -154,7 +155,7 @@ routine: ASYNC TYPE IDENT TYPE block { $$ = new_coroutine($3, $2, $4, $5); }
   | RAWC { $$ = new_rawc($1); }
   ;
 
-block: OPEN_BRACE stmts CLOSE_BRACE { $$ = $2 } ;
+block: OPEN_BRACE stmts CLOSE_BRACE { $$ = $2; }
 
 stmts:         { $$ = NULL; }
   | stmts stmt { $$ = add_stmt($1, $2); }
